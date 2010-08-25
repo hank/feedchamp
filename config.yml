@@ -1,7 +1,6 @@
-id: http://planet.terralien.com/
-title: Planet Terralien
-author: Terralien Crew
-external_feed: http://feeds.feedburner.com/planet-terralien
+id: http://ralree.dyndns.org
+title: Brutal Reader
+author: Erik Gregg and the feedchamp originators
 feeds:
   - http://feeds.feedburner.com/terralien-ships-log
   - http://feeds.feedburner.com/pelargir

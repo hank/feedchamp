@@ -208,6 +208,23 @@ module FeedChamp::Controllers
       render :feed
     end
   end
+
+  class Javascript < R '/local.js'
+    def get
+      @headers["Content-Type"] = "text/javascript; charset=utf-8"
+      @body = %{
+        function toggle(id){
+          var el = document.getElementById('entry'+id);
+          if (el.style.display == 'none') {
+            el.style.display = 'block';
+            window.location='#details'+id;
+          } else {
+            el.style.display = 'none';
+          }
+        }
+      }
+    end
+  end
   
   class Style < R '/styles.css'
     def get
@@ -234,20 +251,37 @@ module FeedChamp::Controllers
         #content {
           padding: 10px;
           padding-top: 20px;
-          margin-top: 2em;
         }
         #content h3 {
           font-size: 150%;
         }
         #content .entry {
           border-bottom: 1px solid #ccc;
-          padding-top: .5em;
-          padding-bottom: 1.5em;
+          margin-top: -0.5em;
+          margin-bottom: -0.5em;
         }
         #content .entry .info {
           color: #999;
           font-size: 80%;
-          margin-top: -1.5em;
+          margin-bottom: -0.5em;
+        }
+
+        #content .site_title {
+          color: #777;
+          padding-right: 10px;
+        }
+
+        #content .title {
+          font-weight: bold;
+        }
+
+        #content .orig_link {
+          font-size: 0.618em;
+          float: right;
+        }
+
+        #content .date {
+          padding-right: 10px;
         }
       }
     end
@@ -261,22 +295,29 @@ module FeedChamp::Views
         title FeedChamp.title
         link :rel => 'stylesheet', :type => 'text/css', :href => '/styles.css', :media => 'screen'
         link :href => FeedChamp.feed, :rel => "alternate", :title => "Primary Feed", :type => "application/atom+xml"
+        script :src => 'local.js'
       end
       body do
-        div.header! do
-          h1 FeedChamp.title
-        end
+        #div.header! do
+        #  h1 FeedChamp.title
+        #end
         div.content! do
           @entries.each do |entry|
+            a(:name => 'details'+entry.id.to_s)
             div.entry do
-              h3 { a(CGI.unescapeHTML(entry.title), :href => entry.link) }
-              p.info do
-                i = ["Posted to #{a(entry.site_title, :href => entry.site_link)}"]
-                i << "by #{extract_author(entry.author)}" if entry.author
-                i << "on #{entry.updated.strftime('%B %d, %Y')}"
-                i.join(' ')
+              p do
+                i = [span.date(entry.updated.strftime('%B %d, %Y'))]
+                i << span.site_title{entry.site_title}
+                i << span.title{a(entry.title, :href => "javascript:toggle('#{entry.id}');")}
+                i << a.orig_link(CGI.unescapeHTML("Original"), :href => entry.link)
+                i.join(" ")
               end
-              text entry.content.to_s
+              div.details(:id => "entry"+entry.id.to_s, :style => 'display: none;') do
+                 p.info do
+                   "by #{extract_author(entry.author)}" if entry.author
+                 end
+                 text entry.content.to_s
+               end
             end
           end
         end
