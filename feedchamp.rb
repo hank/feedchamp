@@ -39,6 +39,7 @@ class << FeedChamp
   def author
     config[:author] || title
   end
+
 end
 
 module FeedChamp::Models
@@ -87,8 +88,16 @@ module FeedChamp::Models
 
   class Entry < Base
     class << self
-      def find_recent(limit = 50)
-        find(:all, :limit => limit, :order => "updated DESC")
+      def find_recent(limit = 50, hidden = false, starred = false)
+        conditions = {}
+        if !hidden 
+          conditions[:hidden] = false
+        end
+        if starred
+          conditions[:starred] = true
+        end
+        find(:all, :limit => limit, :order => "updated DESC", 
+             :conditions => conditions)
       end
       def process_feeds(feeds = FeedChamp.feeds)
         feeds.each do |feed|
@@ -104,7 +113,8 @@ module FeedChamp::Models
           unless Entry.exists?(guid_for(item))
             Entry.create(
               :title => item.title,
-              :content => fix_content(item.content || item.content_encoded || item.description || item.summary, rss.feed.link),
+              :content => fix_content(item.content || item.content_encoded || 
+                          item.description || item.summary, rss.feed.link),
               :author => item.author || item.contributor || item.dc_creator,
               :link => item.link,
               :updated => item.updated || item.published || item.pubDate,
@@ -123,6 +133,7 @@ module FeedChamp::Models
         (%r{^(http|urn|tag):}i =~ item.guid ? item.guid : item.link)
       end
       def fix_content(content, site_link)
+        return content if content.nil?
         content = CGI.unescapeHTML(content) unless /</ =~ content
         correct_urls(content, site_link)
       end
@@ -176,7 +187,7 @@ module FeedChamp::Models
     end
     def self.down
       remove_column :feedchamp_entries, :updated
-      add_colun :feedchamp_entries, :date, :date
+      add_column :feedchamp_entries, :date, :date
       Entry.delete_all
     end
   end
@@ -189,102 +200,141 @@ module FeedChamp::Models
       rename_column :feedchamp_entries, :content, :description
     end
   end
+
+  class AddFlags < V 1.4
+    def self.up
+      add_column :feedchamp_entries, :read, :boolean, :default => false
+      add_column :feedchamp_entries, :starred, :boolean, :default => false
+      add_column :feedchamp_entries, :hidden, :boolean, :default => false
+    end
+    def self.down
+      remove_column :feedchamp_entries, :read
+      remove_column :feedchamp_entries, :starred
+      remove_column :feedchamp_entries, :hidden
+    end
+  end
 end
 
 module FeedChamp::Controllers
   class Index < R '/'
     def get
       Entry.process_feeds
-      @entries = Entry.find_recent
+      unless @input['num'].nil?
+        @num = @input['num']
+      else
+        @num = 50
+      end
+      @entries = Entry.find_recent(@num, false)
+      @unread = true
       render :index
+    end
+  end
+
+  class All < R '/all'
+    def get
+      Entry.process_feeds
+      unless @input['num'].nil?
+        @num = @input['num']
+      else
+        @num = 50
+      end
+      @entries = Entry.find_recent(@num, true, false)
+      @all = true
+      render :index
+    end
+  end
+
+  class Starred < R '/starred'
+    def get
+      Entry.process_feeds
+      unless @input['num'].nil?
+        @num = @input['num']
+      else
+        @num = 50
+      end
+      @entries = Entry.find_recent(@num, false, true)
+      render :index
+    end
+  end
+
+  class Read < R '/read/(\d+)'
+    def get(id)
+      e = Entry.find(id)
+      e.read = true;
+      e.save
+      "Entry #{id} read."
+    end
+  end
+
+  class Star < R '/star/(\d+)'
+    def get(id)
+      e = Entry.find(id)
+      e.starred = true;
+      e.save
+      "Entry #{id} starred."
+    end
+  end
+
+  class Unstar < R '/unstar/(\d+)'
+    def get(id)
+      e = Entry.find(id)
+      e.starred = false;
+      e.save
+      "Entry #{id} unstarred."
+    end
+  end
+
+  class Clear < R '/clear'
+    def get 
+      en = Entry.find(:all, :conditions => { :read => true} )
+      en.each {|e| e.hidden = true; e.save}
     end
   end
   
   class Feed < R '/feed.xml'
     def get
       Entry.process_feeds
-      @entries = Entry.find_recent(15)
+      @entries = Entry.find_recent(15, false)
       @headers["Content-Type"] = "application/atom+xml; charset=utf-8"
       render :feed
     end
   end
 
-  class Javascript < R '/local.js'
+  class JQuery < R '/jquery.js'
     def get
-      @headers["Content-Type"] = "text/javascript; charset=utf-8"
-      @body = %{
-        function toggle(id){
-          var el = document.getElementById('entry'+id);
-          if (el.style.display == 'none') {
-            el.style.display = 'block';
-            window.location='#details'+id;
-          } else {
-            el.style.display = 'none';
-          }
-        }
-      }
+      sendfile("text/javascript; charset=utf-8", "jquery.js")
+    end
+  end
+
+  class StarIcon < R '/star.png'
+    def get
+      sendfile("image/png", "star.png")
+    end
+  end
+
+  class DarkStarIcon < R '/darkstar.png'
+    def get
+      sendfile("image/png", "darkstar.png")
+    end
+  end
+
+  class LoadlJS < R '/local.js'
+    def get
+      sendfile("text/javascript; charset=utf-8", "local.js")
     end
   end
   
   class Style < R '/styles.css'
     def get
-      @headers["Content-Type"] = "text/css; charset=utf-8"
-      @body = %{
-        body {
-          font-family: "Lucidia Grande", Verdana, Arial, Helvetica, sans-serif;
-          font-size: 80%;
-          margin: 0;
-          padding: 0;
-        }
-        #header {
-          background: #69c;
-          color: white;
-          padding: 10px;
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100%;
-        }
-        #header h1 {
-          margin: 0;
-        }
-        #content {
-          padding: 10px;
-          padding-top: 20px;
-        }
-        #content h3 {
-          font-size: 150%;
-        }
-        #content .entry {
-          border-bottom: 1px solid #ccc;
-          margin-top: -0.5em;
-          margin-bottom: -0.5em;
-        }
-        #content .entry .info {
-          color: #999;
-          font-size: 80%;
-          margin-bottom: -0.5em;
-        }
-
-        #content .site_title {
-          color: #777;
-          padding-right: 10px;
-        }
-
-        #content .title {
-          font-weight: bold;
-        }
-
-        #content .orig_link {
-          font-size: 0.618em;
-          float: right;
-        }
-
-        #content .date {
-          padding-right: 10px;
-        }
-      }
+      sendfile("text/css; charset=utf-8", "styles.css")
     end
+  end
+
+  # Privates...
+  def sendfile(content_type, filename)
+    current_dir = File.expand_path(File.dirname(__FILE__))
+    @headers['Content-Type'] = content_type
+    @headers['X-Sendfile'] = "#{current_dir}/#{filename}"
   end
 end
 
@@ -294,25 +344,47 @@ module FeedChamp::Views
       head do
         title FeedChamp.title
         link :rel => 'stylesheet', :type => 'text/css', :href => '/styles.css', :media => 'screen'
-        link :href => FeedChamp.feed, :rel => "alternate", :title => "Primary Feed", :type => "application/atom+xml"
+        link :href => FeedChamp.feed, :rel => "alternate", :title => "Primary Feed", 
+             :type => "application/atom+xml"
+        script :src => 'jquery.js'
         script :src => 'local.js'
       end
       body do
-        #div.header! do
-        #  h1 FeedChamp.title
-        #end
+        div.header! do
+          h1 { a(FeedChamp.title, :href => "/") }
+          if @all
+            span.menu{ a("Unread", :href => "/") }
+          elsif @unread
+            span.menu{ a("All", :href => "/all") }
+          else
+            span.menu{ a("Unread", :href => "/") }
+            span.menu{ a("All", :href => "/all") }
+          end
+          span.menu{ a("Starred", :href => '/starred') }
+          span.menu{ a("Clear Read", :href => "javascript:void(0);", 
+                                     :onclick => 'clear_read();') }
+          span.menu{"Entries: "}
+          select(:id => 'num') do
+            option(@num.to_i == 10 ? {:selected => true} : {}){ "10" }
+            option(@num.to_i == 50 ? {:selected => true} : {}){ "50" }
+            option(@num.to_i == 100 ? {:selected => true} : {}){ "100" }
+          end
+        end
         div.content! do
           @entries.each do |entry|
-            a(:name => 'details'+entry.id.to_s)
-            div.entry do
+            a(:name => 'anchor'+entry.id.to_s)
+            div(:id => 'entry'+entry.id.to_s, 
+                :class => entry.read ? 'entry read' : 'entry') do
               p do
                 i = [span.date(entry.updated.strftime('%B %d, %Y'))]
                 i << span.site_title{entry.site_title}
-                i << span.title{a(entry.title, :href => "javascript:toggle('#{entry.id}');")}
+                i << span.title{a(entry.title, :href => "javascript:read('#{entry.id}');")}
+                i << img(:src => entry.starred ? "star.png" : "darkstar.png", 
+                         :onclick => "toggle_star(#{entry.id})", :id => "star#{entry.id}")
                 i << a.orig_link(CGI.unescapeHTML("Original"), :href => entry.link)
                 i.join(" ")
               end
-              div.details(:id => "entry"+entry.id.to_s, :style => 'display: none;') do
+              div.details(:id => "details"+entry.id.to_s, :style => 'display: none;') do
                  p.info do
                    "by #{extract_author(entry.author)}" if entry.author
                  end

@@ -49,3 +49,6 @@ http://code.whytheluckystiff.net/camping/wiki/TheCampingServer
 FeedChamp is released under the MIT license and is copyright (c) 2006-
 2009 John W. Long. A copy of the MIT license can be found in the
 LICENSE file.
+
+This software is a derivative of FeedChamp forked by Erik Gregg in 2010.
+It is also bound by the included LICENSE file.
