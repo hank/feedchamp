@@ -27,6 +27,10 @@ class << FeedChamp
   def title
     config[:title]
   end
+
+  def starfeed
+    '/starfeed.xml'
+  end
   
   def feed
     config[:external_feed] || '/feed.xml'
@@ -117,7 +121,7 @@ module FeedChamp::Models
                           item.description || item.summary, rss.feed.link),
               :author => item.author || item.contributor || item.dc_creator,
               :link => item.link,
-              :updated => item.updated || item.published || item.pubDate,
+              :updated => item.updated || item.published || item.pubDate || Time.now,
               :guid => guid_for(item),
               :site_link => rss.feed.link,
               :site_title => rss.feed.title
@@ -252,7 +256,7 @@ module FeedChamp::Controllers
       else
         @num = 50
       end
-      @entries = Entry.find_recent(@num, false, true)
+      @entries = Entry.find_recent(@num, true, true)
       render :index
     end
   end
@@ -294,8 +298,18 @@ module FeedChamp::Controllers
   class Feed < R '/feed.xml'
     def get
       Entry.process_feeds
-      @entries = Entry.find_recent(15, false)
+      @entries = Entry.find_recent(15, true)
       @headers["Content-Type"] = "application/atom+xml; charset=utf-8"
+      render :feed
+    end
+  end
+
+  class StarFeed < R '/starfeed.xml'
+    def get
+      Entry.process_feeds
+      @entries = Entry.find_recent(50, true, true)
+      @headers["Content-Type"] = "application/atom+xml; charset=utf-8"
+      @starfeed = true
       render :feed
     end
   end
@@ -303,6 +317,24 @@ module FeedChamp::Controllers
   class JQuery < R '/jquery.js'
     def get
       sendfile("text/javascript; charset=utf-8", "jquery.js")
+    end
+  end
+
+  class Back < R '/back.jpg'
+    def get
+      sendfile("image/jpeg", "back.jpg")
+    end
+  end
+
+  class RssIcon < R '/rss-icon.png'
+    def get
+      sendfile("image/png", "rss-icon.png")
+    end
+  end
+
+  class RssHeart < R '/rss-icon-heart.png'
+    def get
+      sendfile("image/png", "rss-icon-heart.png")
     end
   end
 
@@ -346,12 +378,15 @@ module FeedChamp::Views
         link :rel => 'stylesheet', :type => 'text/css', :href => '/styles.css', :media => 'screen'
         link :href => FeedChamp.feed, :rel => "alternate", :title => "Primary Feed", 
              :type => "application/atom+xml"
+        link :href => FeedChamp.starfeed, :rel => "alternate", :title => "Starred Feed", 
+             :type => "application/atom+xml"
         script :src => 'jquery.js'
         script :src => 'local.js'
       end
       body do
         div.header! do
           h1 { a(FeedChamp.title, :href => "/") }
+          span.menu{ a("Unread", :onclick => "$.get('/update');") }
           if @all
             span.menu{ a("Unread", :href => "/") }
           elsif @unread
@@ -369,27 +404,43 @@ module FeedChamp::Views
             option(@num.to_i == 50 ? {:selected => true} : {}){ "50" }
             option(@num.to_i == 100 ? {:selected => true} : {}){ "100" }
           end
+          # RSS
+          span.menu do
+            a(:href => FeedChamp.feed, :title => "Primary Feed", :class => 'feedlink') do
+              img :src => 'rss-icon.png'
+            end
+            a(:href => FeedChamp.starfeed, :title => "Starred Feed", :class => 'feedlink') do
+              img :src => 'rss-icon-heart.png'
+            end
+          end
         end
         div.content! do
-          @entries.each do |entry|
-            a(:name => 'anchor'+entry.id.to_s)
-            div(:id => 'entry'+entry.id.to_s, 
-                :class => entry.read ? 'entry read' : 'entry') do
-              p do
-                i = [span.date(entry.updated.strftime('%B %d, %Y'))]
-                i << span.site_title{entry.site_title}
-                i << span.title{a(entry.title, :href => "javascript:read('#{entry.id}');")}
-                i << img(:src => entry.starred ? "star.png" : "darkstar.png", 
-                         :onclick => "toggle_star(#{entry.id})", :id => "star#{entry.id}")
-                i << a.orig_link(CGI.unescapeHTML("Original"), :href => entry.link)
-                i.join(" ")
-              end
-              div.details(:id => "details"+entry.id.to_s, :style => 'display: none;') do
-                 p.info do
-                   "by #{extract_author(entry.author)}" if entry.author
+          if @entries.size == 0
+            h1 "Nothing to see here. Come back again soon!"
+          else
+            @entries.each do |entry|
+              a(:name => 'anchor'+entry.id.to_s)
+              div(:id => 'entry'+entry.id.to_s, 
+                  :class => entry.read ? 'entry read' : 'entry') do
+                p do
+                  i = []
+                  unless entry.updated.nil?
+                    i << span.date(entry.updated.strftime('%B %d, %Y'))
+                  end
+                  i << span.site_title{entry.site_title}
+                  i << span.title{a(entry.title, :href => "javascript:read('#{entry.id}');")}
+                  i << img(:src => entry.starred ? "star.png" : "darkstar.png", 
+                           :onclick => "toggle_star(#{entry.id})", :id => "star#{entry.id}")
+                  i << a.orig_link(CGI.unescapeHTML("Original"), :href => entry.link)
+                  i.join(" ")
+                end
+                div.details(:id => "details"+entry.id.to_s, :style => 'display: none;') do
+                   p.info do
+                     "by #{extract_author(entry.author)}" if entry.author
+                   end
+                   text entry.content.to_s
                  end
-                 text entry.content.to_s
-               end
+              end
             end
           end
         end
@@ -402,10 +453,12 @@ module FeedChamp::Views
     text %(<feed xmlns="http://www.w3.org/2005/Atom">)
     text %(  <id>#{FeedChamp.id}</id>)
     text %(  <title>#{FeedChamp.title}</title>)
-    text %(  <updated>#{@entries.first.updated.to_time.xmlschema}</updated>)
+    unless @entries.first.nil?
+      text %(  <updated>#{@entries.first.updated.to_time.xmlschema}</updated>)
+    end
     text %(  <author><name>#{FeedChamp.author}</name></author>)
     text %(  <link href="http:#{URL().to_s}"/>)
-    text %(  <link rel="self" href="http:#{URL('/feed.xml').to_s}"/>)
+    text %(  <link rel="self" href="http:#{@starfeed.nil? ? URL('/feed.xml').to_s : URL('/starfeed.xml').to_s}"/>)
     text %(  <generator>FeedChamp</generator>)
     @entries.each do |entry|
       text %(  <entry>)

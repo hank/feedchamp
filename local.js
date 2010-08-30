@@ -65,20 +65,53 @@ $(document).ready(function() {
 $(document).keypress(function(ev)
 {
     //alert("Pressed "+ev.keyCode);
-    if(ev.keyCode == 106) 
+    if(ev.which === 106) 
     { // J
       var el = $('.open_for_reading');
+      var reg = /entry([0-9]+)/;
       if(el.size() == 0)
       {
         // Nothing's open.  Just open the first entry
         el = $('.entry:first');
+        var matcharray = reg.exec(el.get(0).id);
+        var open_id = matcharray[1];
+        read(open_id);
       }
-      var reg = /entry([0-9]+)/;
-      var matcharray = reg.exec(el.get(0).id);
-      var close_id = matcharray[1];
-      matcharray = reg.exec(el.nextAll("div").get(0).id);
-      var open_id = matcharray[1];
-      read(close_id);
-      read(open_id);
+      else
+      {
+        var matcharray = reg.exec(el.get(0).id);
+        var close_id = matcharray[1];
+        matcharray = reg.exec(el.nextAll("div").get(0).id);
+        var open_id = matcharray[1];
+        if(open_id == null) return;
+        read(close_id);
+        read(open_id);
+      }
+    }
+    else if(ev.which === 107)
+    { // K
+      var el = $('.open_for_reading');
+      if(el != null)
+      {
+        var reg = /entry([0-9]+)/;
+        var matcharray = reg.exec(el.get(0).id);
+        var close_id = matcharray[1];
+        matcharray = reg.exec(el.prevAll("div").get(0).id);
+        var open_id = matcharray[1];
+        if(open_id == null) return;
+        read(close_id);
+        read(open_id);
+      }
+    }
+    else if(ev.which === 111)
+    { //O
+      // Open for reading elsewhere!
+      var el = $('.open_for_reading');
+      if(el != null) return;
+      alert("Chiz!");
+      window.open(el.find("a.orig_link").attr("href"), "_blank");
+    }
+    else {
+      alert(ev.which);
     }
 });

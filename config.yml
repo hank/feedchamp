@@ -1,4 +1,4 @@
-id: http://ralree.dyndns.org
+id: http://ralree.dyndns.org/
 title: Brutal Reader
 author: Erik Gregg and the feedchamp originators
 feeds:
@@ -83,3 +83,4 @@ feeds:
   - http://409.ralree.info/?feed=rss2
   - http://anarchyschool.blogspot.com/feeds/posts/default
   - http://feeds.feedburner.com/github
+  - http://www.google.com/reader/public/atom/user/06284209297781914578/state/com.google/broadcast

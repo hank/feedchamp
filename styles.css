@@ -5,7 +5,7 @@ body {
   padding: 0;
 }
 #header {
-  background: #69c;
+  background-image: url('/back.jpg');
   color: white;
   padding: 10px;
   top: 0;
@@ -72,3 +72,6 @@ body {
   background-color: #F4F4F4;
 }
 
+a.feedlink {
+  text-decoration: none;
+}
