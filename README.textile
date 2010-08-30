@@ -5,7 +5,7 @@ It's really just an experiment right now, but perhaps you will find
 it useful.
 
 
-== Installation
+h2. Installation
 
 FeedChamp depends on the following gems:
 
@@ -22,7 +22,7 @@ camping server:
 bc. camping -d feedchamp.db .
 
 
-== Configuration
+h2. Configuration
 
 Configuration for FeedChamp is simple. Just create a YAML file in the
 same directory that feedchamp.rb is installed and call it @config.yml@.
@@ -35,12 +35,12 @@ bc. title: My Feed Planet
     - http://secondwebsite.com/feed.rss
 
 
-== Deployment
+h2. Deployment
 
 When you are ready to deploy FeedChamp see "this":http://code.whytheluckystiff.net/camping/wiki/TheCampingServer
 
 
-== License
+h2. License
 
 FeedChamp is released under the MIT license and is copyright (c) 2006-
 2009 John W. Long. A copy of the MIT license can be found in the
