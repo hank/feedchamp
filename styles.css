@@ -80,3 +80,11 @@ a.feedlink {
   display: none;
   visibility: none;
 }
+
+form#newfeed {
+  display: inline;
+}
+
+#url {
+  background-color: #999;
+}

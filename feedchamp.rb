@@ -37,11 +37,17 @@ class << FeedChamp
 
   def saveconfig
     unless FileTest.exist? 'config.yml.bak'
-      FileUtils.cp('config.yml', 'config.yml.bak')
+      FileUtils.cp('config.yml.bak', 'config.yml.bak2')
     end
+    FileUtils.cp('config.yml', 'config.yml.bak')
     f = File.open(File.join(root, 'config.yml'), 'w')
     YAML.dump(self.config, f)
     f.close
+  end
+  
+  def addfeed(feed)
+    config[:feeds].push(feed)
+    saveconfig
   end
   
   def feeds
@@ -320,6 +326,13 @@ module FeedChamp::Controllers
     end
   end
 
+  class AddFeed < R '/add'
+    def post
+      FeedChamp.addfeed(@input['url'])
+      "Done."
+    end
+  end
+
   class Star < R '/star/(\d+)'
     def get(id)
       e = Entry.find(id)
@@ -378,57 +391,27 @@ module FeedChamp::Controllers
     end
   end
 
-  class JQuery < R '/jquery.js'
-    def get
-      sendfile("text/javascript; charset=utf-8", "jquery.js")
+  class JPEG < R '/(.*\.jpg)$'
+    def get(file)
+      sendfile("image/jpeg", file)
     end
   end
 
-  class Back < R '/back.jpg'
-    def get
-      sendfile("image/jpeg", "back.jpg")
+  class PNG < R '/(.*\.(?:png|ico))$'
+    def get(file)
+      sendfile("image/png", file)
     end
   end
 
-  class RssIcon < R '/rss-icon.png'
-    def get
-      sendfile("image/png", "rss-icon.png")
-    end
-  end
-
-  class RssHeart < R '/rss-icon-heart.png'
-    def get
-      sendfile("image/png", "rss-icon-heart.png")
-    end
-  end
-
-  class StarIcon < R '/star.png'
-    def get
-      sendfile("image/png", "star.png")
-    end
-  end
-
-  class DarkStarIcon < R '/darkstar.png'
-    def get
-      sendfile("image/png", "darkstar.png")
-    end
-  end
-
-  class LoadlJS < R '/local.js'
-    def get
-      sendfile("text/javascript; charset=utf-8", "local.js")
+  class JS < R '/(.*\.js)$'
+    def get(file)
+      sendfile("text/javascript; charset=utf-8", file)
     end
   end
   
-  class Style < R '/styles.css'
-    def get
-      sendfile("text/css; charset=utf-8", "styles.css")
-    end
-  end
-
-  class Favicon < R '/favicon.ico'
-    def get
-      sendfile("image/png", "favicon.ico")
+  class CSS < R '/(.*\.css)$'
+    def get(file)
+      sendfile("text/css; charset=utf-8", file)
     end
   end
 
@@ -487,6 +470,13 @@ module FeedChamp::Views
           img :src => 'rss-icon-heart.png'
         end
       end
+      span.menu do
+        form(:id => 'newfeed') do
+          input :type => 'text', :name => 'url', :id => 'url', :size => 100, :onfocus => 'global_catchkeys = 0;',
+              :onblur => 'global_catchkeys = 1;'
+          input :type => 'submit', :value => "Add"
+        end
+      end
     end
     div.content! do
       if @entries.size == 0
@@ -497,7 +487,9 @@ module FeedChamp::Views
           div(:id => 'entry'+entry.id.to_s, 
               :class => entry.read ? 'entry read' : 'entry') do
             p do
-              unless entry.updated.nil?
+              if entry.updated.nil?
+                span.date(Time.now.strftime('%B %d, %Y'))
+              else
                 span.date(entry.updated.strftime('%B %d, %Y'))
               end
               span.site_title{entry.site_title}

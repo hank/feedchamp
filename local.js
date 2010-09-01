@@ -1,3 +1,4 @@
+global_catchkeys = 1;
 function read(id){
   var el = $('#details'+id).get(0);
   if (el.style.display == 'none') 
@@ -59,11 +60,23 @@ $(document).ready(function() {
   $('#num').change(function(){  
     window.location.href = "/?num="+$('#num').get(0).value;
   });
+
+  // Bind submit function for add
+  $('#newfeed').submit(function() {
+    $.post("add", {'url': $('#url').get(0).value},
+      function(data) {
+        alert("Successfully added the url.");
+        $('#url').get(0).value = "";
+      }
+    );
+  });
+
 });
 
 // Implement keypresses
 $(document).keypress(function(ev)
 {
+    if(!global_catchkeys) return true;
     //alert("Pressed "+ev.keyCode);
     if(ev.which === 106) 
     { // J
@@ -73,13 +86,17 @@ $(document).keypress(function(ev)
       {
         // Nothing's open.  Just open the first entry
         el = $('.entry:first');
-        var matcharray = reg.exec(el.get(0).id);
+        var kalel = el.get(0);
+        if(kalel == undefined) return false;
+        var matcharray = reg.exec(kalel.id);
         var open_id = matcharray[1];
         read(open_id);
       }
       else
       {
-        var matcharray = reg.exec(el.get(0).id);
+        var kalel = el.get(0);
+        if(kalel == undefined) return false;
+        var matcharray = reg.exec(kalel.id);
         var close_id = matcharray[1];
         matcharray = reg.exec(el.nextAll("div").get(0).id);
         var open_id = matcharray[1];
@@ -94,7 +111,9 @@ $(document).keypress(function(ev)
       if(el != null)
       {
         var reg = /entry([0-9]+)/;
-        var matcharray = reg.exec(el.get(0).id);
+        var kalel = el.get(0);
+        if(kalel == undefined) return false;
+        var matcharray = reg.exec(kalel.id);
         var close_id = matcharray[1];
         matcharray = reg.exec(el.prevAll("div").get(0).id);
         var open_id = matcharray[1];
@@ -107,8 +126,6 @@ $(document).keypress(function(ev)
     { //O
       // Open for reading elsewhere!
       var el = $('.open_for_reading');
-      if(el != null) return;
-      alert("Chiz!");
       window.open(el.find("a.orig_link").attr("href"), "_blank");
     }
     else if(ev.which === 115)

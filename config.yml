@@ -3,17 +3,17 @@ title: Brutal Reader
 author: Erik Gregg and the feedchamp originators
 feeds:
   - http://blackandwtf.tumblr.com/rss
-  - http://feeds.feedburner.com/EFCP
-  - http://feeds.feedburner.com/englishrussia/GrPQ
+  - http://feeds.feedburner.com/EFCP?format=xml
+  - http://feeds.feedburner.com/englishrussia/GrPQ?format=xml
   - http://www.everythingisterrible.com/feeds/posts/default
-  - http://feeds.feedburner.com/shipmentoffail
+  - http://feeds.feedburner.com/shipmentoffail?format=xml
   - http://feeds.feedburner.com/hyperdeathbabies?format=xml
-  - http://feeds2.feedburner.com/knowyourmeme
+  - http://feeds2.feedburner.com/knowyourmeme?format=xml
   - http://www.murderburger.co.nz/feed/
   - http://stuffwhitepeoplelike.com/feed/
-  - http://feeds.feedburner.com/Cinemassacrecom
+  - http://feeds.feedburner.com/Cinemassacrecom?format=xml
   - http://www.joindiaspora.com/atom.xml
-  - http://feeds.feedburner.com/schneier/excerpts
+  - http://feeds.feedburner.com/schneier/excerpts?format=xml
   - http://baltimore.craigslist.org/search/sss?query=ham%20radio&amp;format=rss
   - http://gun-deals.com/customrss.php?user=95c0de228d4d70651564d1f08c8333d5e96715b8
   - http://slickdeals.net/sdsearch.php?search=canon&amp;mode=forum&amp;titleonly=1&amp;searchdate=0&amp;beforeafter=after&amp;sortby=threadstart&amp;order=descending&amp;showposts=0&amp;vote=4&amp;rss=1
@@ -33,14 +33,14 @@ feeds:
   - http://www.collegehumor.com/tag:mrchicity/rss
   - http://crackle.com/rss/media/bz0xMiZmcGw9MzM5MjI1JmZ4PQ.rss
   - http://gdata.youtube.com/feeds/base/users/gazorra/uploads?alt=rss&amp;v=2&amp;orderby=published&amp;client=ytapi-youtube-profile
-  - http://feeds.feedburner.com/AbstruseGoose
+  - http://feeds.feedburner.com/AbstruseGoose?format=xml
   - http://www.amazingsuperpowers.com/category/comics/feed/
   - http://www.anticscomic.com/?feed=rss2
   - http://cectic.com/rss.xml
   - http://www.rsspect.com/rss/qwantz.xml
   - http://henrik.nyh.se/scrapers/cyanide_and_happiness.rss
-  - http://feeds.feedburner.com/GeekAndPoke
-  - http://feeds.feedburner.com/hyperdeathbabies
+  - http://feeds.feedburner.com/GeekAndPoke?format=xml
+  - http://feeds.feedburner.com/hyperdeathbabies?format=xml
   - http://www.partiallyclips.com/includes/rss.xml
   - http://www.smbc-comics.com/rss.php
   - http://seemikedraw.wordpress.com/feed/
@@ -50,7 +50,7 @@ feeds:
   - http://www.toothpastefordinner.com/rss/rss.php
   - http://wondermark.com/wondermarkrss.xml
   - http://xkcd.com/rss.xml
-  - http://feeds2.feedburner.com/stuckincustoms/EmRA
+  - http://feeds2.feedburner.com/stuckincustoms/EmRA?format=xml
   - http://americaloveitornot.blogspot.com/feeds/posts/default
   - http://americanlyyours.com/feed/
   - http://benevis-dige.blogspot.com/feeds/posts/default
@@ -63,13 +63,13 @@ feeds:
   - http://rss.blogs.telegraph.co.uk/rest/ugcBlog?action=getBlogs&amp;rss=1&amp;pCount=3&amp;pullFrom=1&amp;userID=9389136
   - http://www.fas.org/blog/bio/author/kgregg/feed/
   - http://www.geekologie.com/index.xml
-  - http://feeds.feedburner.com/HacketyOrg
+  - http://feeds.feedburner.com/HacketyOrg?format=xml
   - http://johnrlott.blogspot.com/feeds/posts/default
   - http://kelsey.ralree.info/?feed=rss2
   - http://laurenesharp.wordpress.com/feed/
   - http://learnix.net/feed/
-  - http://feeds.feedburner.com/Maoxian
-  - http://feeds.feedburner.com/Millarian
+  - http://feeds.feedburner.com/Maoxian?format=xml
+  - http://feeds.feedburner.com/Millarian?format=xml
   - http://ramblegamble.blogspot.com/feeds/posts/default
   - http://questingforatlantis.com/feed/
   - http://www.davehitt.com/blog2/feed/
@@ -77,10 +77,9 @@ feeds:
   - http://ralree.info/beer/beer.xml
   - http://blog.ryjones.org/feed/
   - http://she.geek.nz/feeds/index.rss2
-  - http://geetduggal.wordpress.com/feed/
-  - http://geetduggal.blogspot.com/feeds/posts/default
-  - http://weblog.site5.com/feed/
+  - http://geetduggal.wordpress.com/blog/feed/
+  - http://www.site5.com/blog/feed/
   - http://409.ralree.info/?feed=rss2
   - http://anarchyschool.blogspot.com/feeds/posts/default
-  - http://feeds.feedburner.com/github
+  - http://feeds.feedburner.com/github?format=xml
   - http://www.google.com/reader/public/atom/user/06284209297781914578/state/com.google/broadcast
