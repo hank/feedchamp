@@ -111,6 +111,18 @@ $(document).keypress(function(ev)
       alert("Chiz!");
       window.open(el.find("a.orig_link").attr("href"), "_blank");
     }
+    else if(ev.which === 115)
+    { // S
+      var el = $('.open_for_reading');
+      if(el != null)
+      {
+        var reg = /entry([0-9]+)/;
+        var matcharray = reg.exec(el.get(0).id);
+        var id = matcharray[1];
+        if(id == null) return;
+        toggle_star(id);
+      }
+    }
     else {
       alert(ev.which);
     }

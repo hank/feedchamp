@@ -75,3 +75,8 @@ body {
 a.feedlink {
   text-decoration: none;
 }
+
+.invisible {
+  display: none;
+  visibility: none;
+}

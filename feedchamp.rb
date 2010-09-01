@@ -1,5 +1,7 @@
 require 'rubygems'
+require 'logger'
 require 'camping'
+require 'camping/session'
 require 'yaml'
 require 'fileutils'
 require 'simple-rss'
@@ -11,6 +13,11 @@ Camping.goes :FeedChamp
 FeedChamp::Models::Base.logger = Logger.new('feedchamp.log')
 FeedChamp::Models::Base.logger.level = Logger::WARN
 
+module FeedChamp
+  set :secret, File.new("secret.dont.commit.txt", "r").gets
+  include Camping::Session
+end
+
 class << FeedChamp
   def root
     File.dirname(__FILE__)
@@ -18,6 +25,12 @@ class << FeedChamp
    
   def config
     @config ||= YAML.load(IO.read(File.join(root, 'config.yml'))).symbolize_keys
+  end
+
+  def saveconfig
+    f = File.open(File.join(root, 'config2.yml'), 'w')
+    YAML.dump(self.config, f)
+    f.close
   end
   
   def feeds
@@ -58,21 +71,43 @@ module FeedChamp::Models
     self.logger = FeedChamp::Models::Base.logger
     
     def self.rss_for(url)
-      SimpleRSS.parse(File.read(filename_for(url)))
+      begin
+        SimpleRSS.parse(File.read(filename_for(url)))
+      rescue 
+        logger.error("Parsing failed for #{url}: #{$!}")
+      end
     end
     
     def self.filename_for(url)
       File.join(cache_directory, url.tr(':/', '_'))
     end
 
-    def self.check_for_updates(url)
+    def self.check_for_updates(url, force = false)
       filename = filename_for(url)
       FileUtils.mkpath(File.dirname(filename))
       last_modified = (File.exist?(filename) ? File.mtime(filename) : Time.at(0))
-      if expire_time.ago > last_modified
+      if force || expire_time.ago > last_modified
         uri = URI::parse(url)
         http = Net::HTTP.start(uri.host, uri.port)
-        response = http.get(uri.request_uri, "If-Modified-Since" => last_modified.httpdate)
+        begin
+          # Try up to 10 redirections
+          times = 0
+          while times < 10
+            response = http.get(uri.request_uri, "If-Modified-Since" => last_modified.httpdate)
+            times += 1
+            logger.warn("Response class is #{response.class}")
+            break if response.class != Net::HTTPMovedPermanently && 
+                     response.class != Net::HTTPFound
+            # We have redirection
+            logger.warn("Redirection from #{url} to #{response['location']}")
+            url = response['location']
+            uri = URI::parse(url)
+          end
+          return false if times == 10
+        rescue
+          logger.error("Error in request of #{uri.request_uri}: #{$!}")
+          return false
+        end
         case response.code
         when '304'
           FileUtils.touch(filename)
@@ -103,16 +138,17 @@ module FeedChamp::Models
         find(:all, :limit => limit, :order => "updated DESC", 
              :conditions => conditions)
       end
-      def process_feeds(feeds = FeedChamp.feeds)
+      def process_feeds(feeds = FeedChamp.feeds, force = false)
         feeds.each do |feed|
           begin
-            process_feed(Cache.rss_for(feed)) if Cache.check_for_updates(feed)
+            process_feed(Cache.rss_for(feed)) if Cache.check_for_updates(feed, force)
           rescue SimpleRSSError => e
             logger.error("#{e} <#{feed}>")
           end
         end
       end  
       def process_feed(rss)
+        return false if rss.class != SimpleRSS
         rss.items.each do |item|
           unless Entry.exists?(guid_for(item))
             Entry.create(
@@ -139,6 +175,9 @@ module FeedChamp::Models
       def fix_content(content, site_link)
         return content if content.nil?
         content = CGI.unescapeHTML(content) unless /</ =~ content
+        # Strip bad javascript from it.
+        content.gsub!("<script", "<div class='invisible'")
+        content.gsub!("</script>", "</div>")
         correct_urls(content, site_link)
       end
       def correct_urls(text, site_link)
@@ -294,13 +333,20 @@ module FeedChamp::Controllers
       en.each {|e| e.hidden = true; e.save}
     end
   end
+
+  class SaveConfig < R '/saveconfig'
+    def get 
+      FeedChamp.saveconfig
+      YAML.dump(FeedChamp.config)
+    end
+  end
   
   class Feed < R '/feed.xml'
     def get
       Entry.process_feeds
       @entries = Entry.find_recent(15, true)
       @headers["Content-Type"] = "application/atom+xml; charset=utf-8"
-      render :feed
+      render :feed, :layout => false
     end
   end
 
@@ -310,7 +356,14 @@ module FeedChamp::Controllers
       @entries = Entry.find_recent(50, true, true)
       @headers["Content-Type"] = "application/atom+xml; charset=utf-8"
       @starfeed = true
-      render :feed
+      render :feed, :layout => false
+    end
+  end
+
+  class Update < R '/update'
+    def get
+      Entry.process_feeds(FeedChamp.feeds, true)
+      "Done."
     end
   end
 
@@ -362,6 +415,12 @@ module FeedChamp::Controllers
     end
   end
 
+  class Favicon < R '/favicon.ico'
+    def get
+      sendfile("image/png", "favicon.ico")
+    end
+  end
+
   # Privates...
   def sendfile(content_type, filename)
     current_dir = File.expand_path(File.dirname(__FILE__))
@@ -371,7 +430,7 @@ module FeedChamp::Controllers
 end
 
 module FeedChamp::Views
-  def index
+  def layout
     html do
       head do
         title FeedChamp.title
@@ -380,68 +439,68 @@ module FeedChamp::Views
              :type => "application/atom+xml"
         link :href => FeedChamp.starfeed, :rel => "alternate", :title => "Starred Feed", 
              :type => "application/atom+xml"
-        script :src => 'jquery.js'
-        script :src => 'local.js'
+        script(:src => 'jquery.js'){}
+        script(:src => 'local.js'){}
       end
-      body do
-        div.header! do
-          h1 { a(FeedChamp.title, :href => "/") }
-          span.menu{ a("Unread", :onclick => "$.get('/update');") }
-          if @all
-            span.menu{ a("Unread", :href => "/") }
-          elsif @unread
-            span.menu{ a("All", :href => "/all") }
-          else
-            span.menu{ a("Unread", :href => "/") }
-            span.menu{ a("All", :href => "/all") }
-          end
-          span.menu{ a("Starred", :href => '/starred') }
-          span.menu{ a("Clear Read", :href => "javascript:void(0);", 
-                                     :onclick => 'clear_read();') }
-          span.menu{"Entries: "}
-          select(:id => 'num') do
-            option(@num.to_i == 10 ? {:selected => true} : {}){ "10" }
-            option(@num.to_i == 50 ? {:selected => true} : {}){ "50" }
-            option(@num.to_i == 100 ? {:selected => true} : {}){ "100" }
-          end
-          # RSS
-          span.menu do
-            a(:href => FeedChamp.feed, :title => "Primary Feed", :class => 'feedlink') do
-              img :src => 'rss-icon.png'
-            end
-            a(:href => FeedChamp.starfeed, :title => "Starred Feed", :class => 'feedlink') do
-              img :src => 'rss-icon-heart.png'
-            end
-          end
+      body { yield }
+    end
+  end
+
+  def index
+    div.header! do
+      h1 { a(FeedChamp.title, :href => "/") }
+      span.menu{ a("Unread", :onclick => "$.get('/update');") }
+      if @all
+        span.menu{ a("Unread", :href => "/") }
+      elsif @unread
+        span.menu{ a("All", :href => "/all") }
+      else
+        span.menu{ a("Unread", :href => "/") }
+        span.menu{ a("All", :href => "/all") }
+      end
+      span.menu{ a("Starred", :href => '/starred') }
+      span.menu{ a("Clear Read", :href => "javascript:void(0);", 
+                                 :onclick => 'clear_read();') }
+      span.menu{"Entries: "}
+      select(:id => 'num') do
+        option(@num.to_i == 10 ? {:selected => true} : {}){ "10" }
+        option(@num.to_i == 50 ? {:selected => true} : {}){ "50" }
+        option(@num.to_i == 100 ? {:selected => true} : {}){ "100" }
+      end
+      # RSS
+      span.menu do
+        a(:href => FeedChamp.feed, :title => "Primary Feed", :class => 'feedlink') do
+          img :src => 'rss-icon.png'
         end
-        div.content! do
-          if @entries.size == 0
-            h1 "Nothing to see here. Come back again soon!"
-          else
-            @entries.each do |entry|
-              a(:name => 'anchor'+entry.id.to_s)
-              div(:id => 'entry'+entry.id.to_s, 
-                  :class => entry.read ? 'entry read' : 'entry') do
-                p do
-                  i = []
-                  unless entry.updated.nil?
-                    i << span.date(entry.updated.strftime('%B %d, %Y'))
-                  end
-                  i << span.site_title{entry.site_title}
-                  i << span.title{a(entry.title, :href => "javascript:read('#{entry.id}');")}
-                  i << img(:src => entry.starred ? "star.png" : "darkstar.png", 
-                           :onclick => "toggle_star(#{entry.id})", :id => "star#{entry.id}")
-                  i << a.orig_link(CGI.unescapeHTML("Original"), :href => entry.link)
-                  i.join(" ")
-                end
-                div.details(:id => "details"+entry.id.to_s, :style => 'display: none;') do
-                   p.info do
-                     "by #{extract_author(entry.author)}" if entry.author
-                   end
-                   text entry.content.to_s
-                 end
+        a(:href => FeedChamp.starfeed, :title => "Starred Feed", :class => 'feedlink') do
+          img :src => 'rss-icon-heart.png'
+        end
+      end
+    end
+    div.content! do
+      if @entries.size == 0
+        h1 "Nothing to see here. Come back again soon!"
+      else
+        @entries.each do |entry|
+          a(:name => 'anchor'+entry.id.to_s)
+          div(:id => 'entry'+entry.id.to_s, 
+              :class => entry.read ? 'entry read' : 'entry') do
+            p do
+              unless entry.updated.nil?
+                span.date(entry.updated.strftime('%B %d, %Y'))
               end
+              span.site_title{entry.site_title}
+              span.title{a(entry.title, :href => "javascript:read('#{entry.id}');")}
+              img(:src => entry.starred ? "star.png" : "darkstar.png", 
+                       :onclick => "toggle_star(#{entry.id})", :id => "star#{entry.id}")
+              a.orig_link(CGI.unescapeHTML("Original"), :href => entry.link)
             end
+            div.details(:id => "details"+entry.id.to_s, :style => 'display: none;') do
+               p.info do
+                 "by #{extract_author(entry.author)}" if entry.author
+               end
+               text entry.content.to_s
+             end
           end
         end
       end
