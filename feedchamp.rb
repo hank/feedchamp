@@ -8,14 +8,22 @@ require 'simple-rss'
 require 'net/http'
 require 'time'
 
+require './basic_authentication'
+
 Camping.goes :FeedChamp
 
 FeedChamp::Models::Base.logger = Logger.new('feedchamp.log')
 FeedChamp::Models::Base.logger.level = Logger::WARN
 
 module FeedChamp
-  set :secret, File.new("secret.dont.commit.txt", "r").gets
+  set :secret, File.new("secret.dont.commit", "r").gets
   include Camping::Session
+  include Camping::BasicAuth
+
+  def authenticate(u, p)
+    [u,p] == ['hank', File.open('password.dont.commit', 'r').gets.chomp]
+  end
+  module_function :authenticate
 end
 
 class << FeedChamp
@@ -28,7 +36,10 @@ class << FeedChamp
   end
 
   def saveconfig
-    f = File.open(File.join(root, 'config2.yml'), 'w')
+    unless FileTest.exist? 'config.yml.bak'
+      FileUtils.cp('config.yml', 'config.yml.bak')
+    end
+    f = File.open(File.join(root, 'config.yml'), 'w')
     YAML.dump(self.config, f)
     f.close
   end

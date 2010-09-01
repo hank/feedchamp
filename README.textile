@@ -34,11 +34,25 @@ bc.   title: My Feed Planet
     - http://firstwebsite.com/feed.rss
     - http://secondwebsite.com/feed.rss
 
+Once you do that, make 2 more files;
+
+* password.dont.commit with a single line containing a password, like omgmypassword
+* secret.dont.commit with a single line containing a session seed, like makdnasjndas
 
 h2. Deployment
 
 When you are ready to deploy FeedChamp see "this":http://code.whytheluckystiff.net/camping/wiki/TheCampingServer
 
+h2. FAQ
+
+*Q: Why do I get a SimpleRSS error about private variables?*
+A: Because the version of SimpleRSS you have doesn't work right with Ruby 1.9.  I have one that
+does.  Here it is:
+
+bc. git clone git://github.com/hank/simple-rss.git
+
+*Q: I got some error!  OMG Who do I tell!?!?*
+A: Me.  ralree at geeee male.  Include FeedChamp in the Subject line.
 
 h2. License
 
@@ -48,3 +62,5 @@ FeedChamp is released under the MIT license and is copyright (c) 2006-
 
 This software is a derivative of FeedChamp forked by Erik Gregg in 2010.
 It is also bound by the included @LICENSE@ file.
+
+Also, I gladly used Manfred Stienstra's "Basic Authentication for Camping":http://www.fngtps.com/2006/05/basic-authentication-for-camping to do the auth.  It made it really easy, and with some ruby magic, I didn't even have to commit the password!
